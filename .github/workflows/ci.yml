@@ -1,0 +1,166 @@
+name: CI - Build, Test, and Publish SDKs
+
+permissions:
+  contents: read
+
+# This workflow builds, tests, and publishes Python SDK packages
+# - Builds and tests run on all branches (main, release/*)
+# - Publishing to package repository ONLY happens on release/* branches
+# - Development versions (with 'dev' suffix) are created on all non-tagged commits
+# - Official releases (without 'dev' suffix) require a Git tag on a release/* branch
+
+on:
+  push:
+    branches: [ main, "release/*" ]
+  pull_request:
+    branches: [ main, "release/*" ]
+
+jobs:
+  version-number:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Need full history for git versioning
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install setuptools-git-versioning
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install setuptools-git-versioning
+
+    - id: package_version
+      name: Calculate Package Version
+      run: |
+        cd ./versioning
+        version=$(python -m setuptools_git_versioning)
+        echo "Package version calculated: $version"
+        echo "PACKAGE_VERSION=$version" >> $GITHUB_OUTPUT
+
+    outputs:
+      PACKAGE_VERSION: ${{ steps.package_version.outputs.PACKAGE_VERSION }}
+  
+  changed-sdks:
+    name: Determine Changed SDKs
+    runs-on: ubuntu-latest
+    outputs:
+      python-sdk: ${{ steps.check_python_sdk.outputs.changed }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - id: git_refs
+      name: Set Git refs for diff
+      run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "base=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+            echo "head=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "base=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
+            echo "head=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
+    - id: check_python_sdk
+      name: Check Python SDK changes
+      run: |
+        if git diff --name-only "${{ steps.git_refs.outputs.base }}" "${{ steps.git_refs.outputs.head }}" -- 'libraries/**' 'setup.py' 'pyproject.toml' 'versioning/**' | grep -q .; then
+          echo "Python SDK changes detected"
+          echo "changed=true" >> $GITHUB_OUTPUT
+        else
+          echo "No Python SDK changes detected"
+          echo "changed=false" >> $GITHUB_OUTPUT
+        fi
+
+  python-sdk:
+    name: Python SDK
+    needs: [version-number, changed-sdks]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./
+
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install the latest version of uv and set the python version
+      uses: astral-sh/setup-uv@v6
+      with:
+        version: '0.6.x'
+        python-version: ${{ matrix.python-version }}
+        working-directory: ./
+        enable-cache: true
+        cache-dependency-glob: "./pyproject.toml"
+    
+    - name: Install the project
+      run: uv lock && uv sync --locked --all-extras --dev
+    
+    - name: Check linting
+      run: |
+        uv run --frozen ruff check .
+      continue-on-error: true
+
+    - name: Check formatting
+      run: |
+        uv run --frozen ruff format --check .
+
+    - name: Build package
+      run: |
+        AGENT365_PYTHON_SDK_PACKAGE_VERSION=${{ needs.version-number.outputs.PACKAGE_VERSION }} uv build --all-packages --wheel
+      env:
+        AGENT365_PYTHON_SDK_PACKAGE_VERSION: ${{ needs.version-number.outputs.PACKAGE_VERSION }}
+
+    - name: Run unit tests
+      run: |
+        uv run --frozen pytest tests/ -v --tb=short -m "not integration"
+
+    - name: Run integration tests
+      # Only run integration tests if secrets are available
+      if: ${{ vars.RUN_INTEGRATION_TESTS == 'true' }}
+      run: |
+        uv run --frozen pytest -m integration -v --tb=short
+      env:
+        AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+        AZURE_OPENAI_ENDPOINT: ${{ vars.AZURE_OPENAI_ENDPOINT }}
+        AZURE_OPENAI_DEPLOYMENT: ${{ vars.AZURE_OPENAI_DEPLOYMENT }}
+        AZURE_OPENAI_API_VERSION: ${{ vars.AZURE_OPENAI_API_VERSION }}        
+        ENABLE_OBSERVABILITY: true
+
+    # Copy package and samples to drop folder
+    - name: Copy package and samples to drop folder
+      run: |
+        mkdir -p ~/drop/python-${{ matrix.python-version }}/dist && cp -v dist/*.whl $_
+
+    # Zip files since upload-artifact does not seem like to like folders
+    - name: Create zip
+      run: cd ~/drop/python-${{ matrix.python-version }} && zip -r ~/drop/python-${{ matrix.python-version }}.zip .
+
+    - name: Upload package and samples as artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-${{ matrix.python-version }}
+        path: ~/drop/python-${{ matrix.python-version }}.zip
+
+    - name: Publish
+      # Only publish when:
+      # 1. It's a push event (not a PR)
+      # 2. The branch is a release/* branch
+      # 3. There are SDK changes
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release/') && needs.changed-sdks.outputs.python-sdk == 'true'
+      run: |
+        uv run twine upload --config-file .pypirc -r Agent365 dist/*
+      continue-on-error: true
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.AZURE_DEVOPS_TOKEN }}

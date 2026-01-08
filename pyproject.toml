@@ -1,0 +1,136 @@
+[build-system]
+requires = ["setuptools>=68", "wheel", "setuptools-git-versioning>=2.0,<3"]
+build-backend = "setuptools.build_meta"
+
+[tool.uv.workspace]
+members = [
+    "libraries/microsoft-agents-a365-notifications",
+    "libraries/microsoft-agents-a365-observability-core", 
+    "libraries/microsoft-agents-a365-observability-extensions-langchain",
+    "libraries/microsoft-agents-a365-observability-extensions-openai",
+    "libraries/microsoft-agents-a365-observability-extensions-semantickernel", 
+    "libraries/microsoft-agents-a365-observability-extensions-agentframework",
+    "libraries/microsoft-agents-a365-runtime",
+    "libraries/microsoft-agents-a365-tooling",
+    "libraries/microsoft-agents-a365-tooling-extensions-azureaifoundry",
+    "libraries/microsoft-agents-a365-tooling-extensions-openai",
+    "libraries/microsoft-agents-a365-tooling-extensions-semantickernel",
+    "libraries/microsoft-agents-a365-tooling-extensions-agentframework",
+    "libraries/microsoft-agents-a365-observability-hosting",
+]
+exclude = [
+    ".",
+    "samples/*",
+    "tests/*"
+]
+
+[tool.uv.sources]
+microsoft-agents-a365-notifications = { workspace = true }
+microsoft-agents-a365-observability-core = { workspace = true }
+microsoft-agents-a365-runtime = { workspace = true }
+microsoft-agents-a365-tooling = { workspace = true }
+microsoft-agents-a365-observability-hosting = { workspace = true }
+
+# Development dependencies for the entire workspace
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-mock>=3.10.0",
+    "ruff>=0.1.0",
+    "python-dotenv>=1.0.0",
+    "openai>=1.0.0",
+    "agent-framework-azure-ai >= 1.0.0b251114",
+    "azure-identity>=1.12.0",
+    "openai-agents >= 0.2.6",
+]
+
+# Test configuration
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = [
+    "-v",
+    "--tb=short", 
+    "--strict-markers",
+    "--strict-config",
+]
+testpaths = ["tests"]
+markers = [
+    "unit: Unit tests (fast, mocked)",
+    "integration: Integration tests (slow, real services)",
+]
+
+[tool.ruff]
+# Set the maximum line length to 100.
+line-length = 100
+target-version = "py311"
+preview = true
+
+# Enable pycodestyle (`E`) and Pyflakes (`F`) codes by default.
+lint.select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings  
+    "F",  # Pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+    "CPY",
+]
+
+lint.ignore = [
+    "E501",  # Line too long, handled by formatter
+]
+
+# Allow fix for all enabled rules (when `--fix`) is provided.
+lint.fixable = ["ALL"]
+lint.unfixable = []
+
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv", 
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+]
+
+[tool.ruff.lint.flake8-copyright]
+# Require this exact line anywhere in the first 4096 bytes
+notice-rgx = "^# Copyright \\(c\\) Microsoft\\. All rights reserved\\."
+# (optional) ensure all files are checked regardless of size
+min-file-size = 1
+
+[tool.ruff.lint.per-file-ignores]
+# Tests can use magic values, assertions, and imports
+"tests/*" = ["PLR2004", "S101", "TID252"]
+"samples/*" = ["B903"]
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"

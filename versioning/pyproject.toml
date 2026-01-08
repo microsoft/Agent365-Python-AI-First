@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=41", "wheel", "setuptools-git-versioning>=2.0,<3", ]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools-git-versioning]
+enabled = true
+version_file = "TARGET-VERSION"
+count_commits_from_version_file = true
+dev_template = "{tag}dev{ccount}"
+dirty_template = "{tag}dev{ccount}"
+
+[project]
+name = "helper"
+dynamic = ["version"]
+description = "Helper project to calculate version"
+authors = [{name = "Microsoft Corporation"}]
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Operating System :: OS Independent",
+]
