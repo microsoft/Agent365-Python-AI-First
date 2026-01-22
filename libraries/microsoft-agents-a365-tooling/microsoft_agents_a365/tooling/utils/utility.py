@@ -89,3 +89,13 @@ def get_mcp_platform_authentication_scope():
         return [envScope]
 
     return [PROD_MCP_PLATFORM_AUTHENTICATION_SCOPE]
+
+
+def get_agent_settings_base_url() -> str:
+    """
+    Gets the base URL for agent settings API.
+
+    Returns:
+        str: The base URL for agent settings API.
+    """
+    return f"{_get_mcp_platform_base_url()}/agents/settings"
