@@ -33,8 +33,8 @@ def test_generate_task_id_format():
 
 def test_generate_task_id_contains_current_date():
     """Test that generated task IDs contain the current UTC date."""
-    task_id = generate_task_id()
     current_date = datetime.now(timezone.utc).strftime("%Y%m%d")
+    task_id = generate_task_id()
     assert current_date in task_id
 
 
@@ -49,6 +49,9 @@ def test_generate_task_id_uniqueness():
 
 def test_generate_task_id_sortability():
     """Test that task IDs are sortable by creation time."""
+    # Capture current date before generating IDs to avoid race conditions
+    current_date = datetime.now(timezone.utc).strftime("%Y%m%d")
+    
     # Generate a list of task IDs
     task_ids = [generate_task_id() for _ in range(10)]
 
@@ -59,7 +62,6 @@ def test_generate_task_id_sortability():
 
     # Verify the format allows for sorting (date is in YYYYMMDD format)
     # This ensures future dates will sort after current dates
-    current_date = datetime.now(timezone.utc).strftime("%Y%m%d")
     assert all(d == current_date for d in dates)
 
 
