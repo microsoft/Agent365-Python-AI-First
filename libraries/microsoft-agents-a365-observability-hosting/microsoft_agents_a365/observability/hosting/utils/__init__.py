@@ -2,10 +2,10 @@
 # Licensed under the MIT License.
 
 """
-Microsoft Agent 365 Observability Hosting Library.
+Utility functions for Agent 365 Observability Hosting.
 """
 
-from .utils import (
+from .turn_context_utils import (
     get_activity_type,
     get_channel_id,
     get_conversation_id,
