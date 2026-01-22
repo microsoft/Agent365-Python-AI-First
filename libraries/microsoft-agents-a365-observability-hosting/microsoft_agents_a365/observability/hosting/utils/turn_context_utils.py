@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from microsoft_agents.activity.channel_id import ChannelId
+
 if TYPE_CHECKING:
     from microsoft_agents.hosting.core.turn_context import TurnContext
 
@@ -141,8 +143,8 @@ def get_channel_id(turn_context: TurnContext | None) -> str | None:
         return None
 
     # Handle both string channel_id and ChannelId object
-    # Check for ChannelId object first (which has a .channel attribute)
-    if hasattr(channel_id, "channel"):
+    # ChannelId is a subclass of str, so check for ChannelId type first
+    if isinstance(channel_id, ChannelId):
         return channel_id.channel
     elif isinstance(channel_id, str):
         return channel_id
