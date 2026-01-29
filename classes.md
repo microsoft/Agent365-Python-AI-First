@@ -2,6 +2,8 @@
 
 This document provides an overview of all classes in the Agent365 Python codebase, organized by library.
 
+> **Note:** Class names are documented exactly as they appear in the source code. Some naming inconsistencies (e.g., `Mcp` vs `MCP`) reflect the actual implementation.
+
 ## Tooling Library
 
 ### McpToolServerConfigurationService
